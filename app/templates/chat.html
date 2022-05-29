@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Chat</title>
+
+    <link href="http://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.97.8/css/materialize.min.css">
+
+    <script type="text/javascript" src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.2.0/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.97.8/js/materialize.min.js"></script>
+
+    <script type="text/javascript" charset="utf-8">
+        var socket
+
+        var current_channel = ''
+
+        var change_channel = function(channel) {
+            document.title = 'Chatroom - ' + channel
+            if(current_channel) {
+                $("#id-div-channels-title").text(document.title)
+            }
+            else {
+                $("#id-div-channels-title").text('Chatroom - Not joining a chat room')
+            }
+        }
+
+        var clear_board = function() {
+            document.querySelector('#message-box').innerHTML = ""
+        }
+
+        $(document).ready(function() {
+            socket = io.connect('ws://' + document.domain + ':' + location.port + '/chat')
+            socket.on('connect', function() {
+                clear_board()
+            })
+
+            change_channel(current_channel)
+
+            let messageBox = document.querySelector('#message-box')
+
+            // Connection information
+            socket.on('status', function (data) {
+                let connectInfo = document.createElement('div')
+                connectInfo.className = 'row'
+
+                let msg = `
+                        <div class="col s4 offset-s4">
+                            <div class="connect-info grey lighten-4 center" >
+                            <span class="black-text">${data.name} ${data.msg}
+                            </span>
+                            </div>
+                        </div>`
+
+                if (data.name === document.querySelector('#username').innerHTML) {
+                    clear_board()
+                }
+                connectInfo.innerHTML = msg
+                messageBox.appendChild(connectInfo)
+
+            })
+
+            // Receive a message
+            socket.on('message', function(data) {
+                let msg = null
+                let msgbox = document.createElement('div')
+                msgbox.className = 'row'
+                if (data.name === document.querySelector('#username').innerHTML) {
+                    msg = `
+                        <div class="col right">
+                            <div class="tag teal z-depth-3" >
+                            <span class="white-text">${data.msg}
+                            </span>
+                            </div>
+                        </div>`
+                } else {
+                    msg = `
+                        <div class="col">
+                            <div class="tag z-depth-3">
+                            <span class="teal-text"><b>${data.name}</b>:  ${data.msg}
+                            </span>
+                            </div>
+                        </div>`
+                }
+                msgbox.innerHTML = msg
+                messageBox.appendChild(msgbox)
+                messageBox.scrollTop = messageBox.scrollHeight
+            })
+
+            // The Enter key sends the message
+            $('#text').keypress(function(e) {
+                var code = e.keyCode || e.which
+                if (code == 13) {
+                    if (!current_channel) {
+                        $('#text').val('')
+                        alert('Not joining a chat room')
+                        return
+                    }
+                    text = $('#text').val()
+                    $('#text').val('')
+                    socket.emit('text', {msg: text, room:current_channel, name: name})
+                }
+            })
+
+            // Click the button to send the message
+            $('#send-msg-btn').on('click', function(e){
+                if (!current_channel) {
+                    $('#text').val('')
+                    alert('Not joining a chat room')
+                    return
+                }
+                text = $('#text').val()
+                $('#text').val('')
+                let name = document.querySelector('#username').innerHTML
+                socket.emit('text', {msg: text, room:current_channel, name: name})
+            })
+
+            // To join the room
+            $('.rc-channel').on('click', function(e){
+                if (current_channel) {
+                     socket.emit('left', {}, function() {
+                     })
+                }
+                current_channel = $(this).text()
+                change_channel(current_channel)
+                clear_board()
+                socket.emit('joined', {msg:current_channel})
+                $('#id_chat_area').empty()
+            })
+        })
+    </script>
+    <style type="text/css">
+        div.col.s12.m8.l9.white {
+            overflow-y: scroll;
+            word-wrap: break-word;
+            height: 700px;
+            width: 650px;
+            margin-top: 2em;
+            padding: 2em 3em;
+        }
+        h5 {
+            text-align: center;
+        }
+        .tag {
+            padding: 6px 10px;
+            border-radius: 9px;
+            max-width: 15em;
+        }
+        .connect-info {
+            margin:0 auto ;
+            padding: 4px 10px;
+            border-radius: 9px;
+            width: 15em;
+        }
+    </style>
+</head>
+
+<body class="blue-grey lighten-5">
+    <nav>
+        <div class="nav-wrapper teal">
+            <a href="" class="brand-logo center">Online Chat Room</a>
+            <ul id="nav-mobile" class="right hide-on-med-and-down">
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="row">
+            <div class="col s12 m4 l3">
+                <div id='id-div-channels' class="rc-left">
+                    <h5 id = 'id-div-channels-title'>Chatroom</h5>
+                    <span>Choose: </span>
+                    <a class="rc-channel" href="#">Room 1</a>
+                    <a class="rc-channel" href="#">Room 2</a>
+                    <a class="rc-channel" href="#">Room 3</a>
+                </div>
+
+                <div class="input-field col s12 z-depth-5">
+                    <h5 id="username">{{ name }}</h5>
+                </div>
+
+                <div class="row">
+                    <div class="input-field col s12">
+                        <input id="text" type="text" class="validate">
+                        <button id="send-msg-btn" class="btn waves-effect waves-light teal right" type="button"
+                                name="action">
+                            send
+                            <i class="material-icons right">send</i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="message-box" class="col s12 m8 l9 white z-depth-1"></div>
+        </div>
+    </div>
+
+</body>
+</html>
