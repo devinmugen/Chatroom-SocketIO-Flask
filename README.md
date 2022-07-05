@@ -1,6 +1,6 @@
 # 在线聊天室 Chatroom-SocketIO-Flask
 
-### Link: http://chat.readbuild.xyz or http://207.148.73.234:8000/
+### Link: http://chat.readbuild.xyz
 
 ### 启动命令
 `gunicorn --thread 50 chat:app --bind 0.0.0.0:8000`
